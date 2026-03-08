@@ -70,13 +70,14 @@ deck = pdk.Deck(
             pickable=True,
         )
     ],
-   tooltip={
+ tooltip={
     "html": "<b>Country:</b> {COUNTRY} <br/>"
-            "<b>Region:</b> {ADMIN1 if ADMIN1 else 'N/A'} <br/>"
+            "<b>Region:</b> {ADMIN1} <br/>"
             "<b>Event Type:</b> {EVENT_TYPE} <br/>"
             "<b>Sub-event:</b> {SUB_EVENT_TYPE} <br/>"
-            "<b>Fatalities:</b> {FATALITIES if FATALITIES else 0}",
+            "<b>Fatalities:</b> {FATALITIES}",
     "style": {"backgroundColor": "white", "color": "black"},
+}
 }
 )
 
