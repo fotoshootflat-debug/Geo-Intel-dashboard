@@ -134,15 +134,40 @@ if len(filtered_df) > MAX_POINTS:
     filtered_df = filtered_df.sample(MAX_POINTS)
 filtered_df = filtered_df.dropna(subset=[lat_col, lon_col])
 
-# --- Step 9: Build PyDeck map ---
-layer = pdk.Layer(
+# Scatter layer (events)
+scatter_layer = pdk.Layer(
     "ScatterplotLayer",
     data=filtered_df,
-    get_position=[lon_col, lat_col],
-    get_fill_color="color",
-    get_radius=50000,
-    pickable=True
+    get_position="[LONGITUDE, LATITUDE]",
+    get_radius=5000,
+    get_fill_color=[255, 0, 0, 140],
+    pickable=True,
 )
+
+# Heatmap layer (conflict density)
+heatmap_layer = pdk.Layer(
+    "HeatmapLayer",
+    data=filtered_df,
+    get_position="[LONGITUDE, LATITUDE]",
+    aggregation=pdk.types.String("MEAN")
+)
+
+# Map view
+view_state = pdk.ViewState(
+    latitude=20,
+    longitude=0,
+    zoom=2,
+    pitch=40
+)
+
+# Render map
+r = pdk.Deck(
+    layers=[heatmap_layer, scatter_layer],
+    initial_view_state=view_state,
+    tooltip={"text": "{EVENT_TYPE}"}
+)
+
+st.pydeck_chart(r)
 
 tooltip = {
     "html": "<b>Country:</b> {COUNTRY} <br/>"
