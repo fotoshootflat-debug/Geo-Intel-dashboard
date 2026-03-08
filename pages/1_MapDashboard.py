@@ -35,6 +35,20 @@ selected_types = st.multiselect("Select event types to display:", event_types, d
 
 filtered_df = df[df["EVENT_TYPE"].isin(selected_types)]
 
+# --- DEBUG: check coordinates ---
+st.write("Coordinate summary:")
+st.write(filtered_df[[lat_col, lon_col]].describe())
+
+st.write("Rows with missing coordinates:")
+st.write(filtered_df[filtered_df[lat_col].isna() | filtered_df[lon_col].isna()])
+
+# Convert coordinates to numeric again for safety
+filtered_df[lat_col] = pd.to_numeric(filtered_df[lat_col], errors="coerce")
+filtered_df[lon_col] = pd.to_numeric(filtered_df[lon_col], errors="coerce")
+
+# Drop rows without coordinates
+filtered_df = filtered_df.dropna(subset=[lat_col, lon_col])
+
 import pydeck as pdk
 st.write("Unique regions in dataset:", filtered_df["ADMIN1"].unique())
 # --- Prepare PyDeck map ---
