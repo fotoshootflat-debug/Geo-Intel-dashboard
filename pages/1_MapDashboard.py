@@ -20,8 +20,9 @@ columns = list(df.columns)
 st.write(columns)
 
 # ---- Determine coordinate columns ----
-# ACLED uses different names depending on region/version
-if "latitude" in df.columns and "longitude" in df.columns:
+if "CENTROID_LATITUDE" in df.columns and "CENTROID_LONGITUDE" in df.columns:
+    lat_col, lon_col = "CENTROID_LATITUDE", "CENTROID_LONGITUDE"
+elif "latitude" in df.columns and "longitude" in df.columns:
     lat_col, lon_col = "latitude", "longitude"
 elif "LATITUDE" in df.columns and "LONGITUDE" in df.columns:
     lat_col, lon_col = "LATITUDE", "LONGITUDE"
