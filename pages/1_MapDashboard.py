@@ -85,15 +85,49 @@ color_map = {
 combined_df["color"] = combined_df["EVENT_TYPE"].map(color_map)
 combined_df["color"] = combined_df["color"].apply(lambda x: x if isinstance(x, list) else [200, 200, 200])
 
-# --- Step 8: Event type filter ---
-selected_types = st.multiselect(
-    "Select event types to display:",
-    combined_df["EVENT_TYPE"].unique(),
-    default=combined_df["EVENT_TYPE"].unique()
+# ---------------- FILTER PANEL ----------------
+
+st.sidebar.header("🔎 Intelligence Filters")
+
+# Event type filter
+event_types = st.sidebar.multiselect(
+    "Select Event Type",
+    combined_df["EVENT_TYPE"].dropna().unique(),
+    default=combined_df["EVENT_TYPE"].dropna().unique()
 )
 
-filtered_df = combined_df[combined_df["EVENT_TYPE"].isin(selected_types)]
+# Country filter
+if "COUNTRY" in combined_df.columns:
+    countries = st.sidebar.multiselect(
+        "Select Country",
+        combined_df["COUNTRY"].dropna().unique()
+    )
+else:
+    countries = []
 
+# Fatality filter
+if "FATALITIES" in combined_df.columns:
+    max_fatalities = int(combined_df["FATALITIES"].max())
+    fatality_range = st.sidebar.slider(
+        "Fatalities Range",
+        0,
+        max_fatalities,
+        (0, max_fatalities)
+    )
+else:
+    fatality_range = (0, 0)
+
+# Apply filters
+filtered_df = combined_df[combined_df["EVENT_TYPE"].isin(event_types)]
+
+if countries:
+    filtered_df = filtered_df[filtered_df["COUNTRY"].isin(countries)]
+
+if "FATALITIES" in filtered_df.columns:
+    filtered_df = filtered_df[
+        (filtered_df["FATALITIES"] >= fatality_range[0]) &
+        (filtered_df["FATALITIES"] <= fatality_range[1])
+    ]
 # Limit number of points sent to the browser
 MAX_POINTS = 50000
 if len(filtered_df) > MAX_POINTS:
