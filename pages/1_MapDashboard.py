@@ -1,51 +1,42 @@
 import streamlit as st
 import pandas as pd
 import pydeck as pdk
+import glob
 import os
 
-st.title("🌍 Global Intelligence Map")
+st.title("🌍 Global Conflict Intelligence Map")
 
 # -----------------------------
-# LOAD DATASETS
+# LOAD ALL DATASETS FROM /data
 # -----------------------------
-
-data_files = {
-    "Latin America": "data/latin_america.csv",
-    "US & Canada": "data/us_canada.csv",
-    "Europe & Central Asia": "data/europe_central_asia.csv"
-}
-
-dataframes = []
-
-for name, path in data_files.items():
-    if os.path.exists(path):
-        df = pd.read_csv(path)
-        df["SOURCE"] = name
-        dataframes.append(df)
-    else:
-        st.warning(f"{path} not found, skipping {name} dataset.")
-
-if not dataframes:
-    st.error("No datasets found.")
+data_files = glob.glob("data/*.csv")
+if not data_files:
+    st.error("No data files found in /data folder.")
     st.stop()
 
-combined_df = pd.concat(dataframes, ignore_index=True)
+df_list = []
+for file in data_files:
+    try:
+        df = pd.read_csv(file)
+        df_list.append(df)
+    except Exception as e:
+        st.warning(f"Could not load {file}: {e}")
 
-# -----------------------------
-# STANDARDIZE COLUMNS
-# -----------------------------
+if not df_list:
+    st.error("No datasets could be loaded.")
+    st.stop()
 
-combined_df.columns = combined_df.columns.str.lower()
+# Combine all datasets
+combined_df = pd.concat(df_list, ignore_index=True)
 
 # -----------------------------
 # COLUMN STANDARDIZATION
 # -----------------------------
-
 combined_df.columns = combined_df.columns.str.lower()
 
-# Possible column names used by datasets
-lat_options = ["latitude", "lat", "y"]
-lon_options = ["longitude", "lon", "lng", "x"]
+# Possible coordinate columns
+lat_options = ["latitude", "lat", "y", "centroid_latitude"]
+lon_options = ["longitude", "lon", "lng", "x", "centroid_longitude"]
 
 lat_col = None
 lon_col = None
@@ -56,134 +47,85 @@ for col in combined_df.columns:
     if col in lon_options:
         lon_col = col
 
+# Handle datasets without coordinates
 if lat_col is None or lon_col is None:
-    st.warning("Dataset has no coordinates and will be ignored for the map.")
-    combined_df = combined_df.dropna()
+    st.warning("No datasets have coordinates. Map will not display.")
+    map_df = pd.DataFrame()  # empty dataframe
 else:
-    combined_df = combined_df.rename(columns={
-        lat_col: "LATITUDE",
-        lon_col: "LONGITUDE"
-    })
+    # Rename detected columns
+    combined_df = combined_df.rename(columns={lat_col: "LATITUDE", lon_col: "LONGITUDE"})
 
-combined_df = combined_df.dropna(subset=["LATITUDE", "LONGITUDE"])
+    # Optional columns
+    combined_df["EVENT_TYPE"] = combined_df.get("event_type", "Unknown")
+    combined_df["FATALITIES"] = combined_df.get("fatalities", 0)
+    combined_df["COUNTRY"] = combined_df.get("country", "Unknown")
+    combined_df["ADMIN1"] = combined_df.get("admin1", "")
 
-# Rename detected columns
-combined_df = combined_df.rename(columns={
-    lat_col: "LATITUDE",
-    lon_col: "LONGITUDE"
-})
+    # Drop rows without coordinates
+    map_df = combined_df.dropna(subset=["LATITUDE", "LONGITUDE"])
 
-# Optional columns
-if "event_type" in combined_df.columns:
-    combined_df = combined_df.rename(columns={"event_type": "EVENT_TYPE"})
-else:
-    combined_df["EVENT_TYPE"] = "Unknown"
-
-if "fatalities" in combined_df.columns:
-    combined_df = combined_df.rename(columns={"fatalities": "FATALITIES"})
-else:
-    combined_df["FATALITIES"] = 0
-
-if "country" in combined_df.columns:
-    combined_df = combined_df.rename(columns={"country": "COUNTRY"})
 # -----------------------------
-# SIDEBAR FILTERS
+# ANALYST METRICS
 # -----------------------------
+if not map_df.empty:
+    total_events = map_df["EVENT_TYPE"].count()
+    total_fatalities = map_df["FATALITIES"].sum()
+    countries_affected = map_df["COUNTRY"].nunique()
+    most_common_event = map_df["EVENT_TYPE"].mode()[0]
 
-st.sidebar.header("🔎 Intelligence Filters")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Events", int(total_events))
+    col2.metric("Total Fatalities", int(total_fatalities))
+    col3.metric("Countries Affected", countries_affected)
+    col4.metric("Most Common Event", most_common_event)
+else:
+    st.info("No coordinate-based data available for metrics.")
 
-event_types = st.sidebar.multiselect(
-    "Event Type",
-    combined_df["EVENT_TYPE"].dropna().unique(),
-    default=combined_df["EVENT_TYPE"].dropna().unique()
-)
+# -----------------------------
+# EVENT TYPE FILTER
+# -----------------------------
+if not map_df.empty:
+    event_types = map_df["EVENT_TYPE"].unique()
+    selected_types = st.multiselect(
+        "Select event types to display:", event_types, default=list(event_types)
+    )
+    filtered_df = map_df[map_df["EVENT_TYPE"].isin(selected_types)]
+else:
+    filtered_df = pd.DataFrame()
 
-filtered_df = combined_df[combined_df["EVENT_TYPE"].isin(event_types)]
-
-if "COUNTRY" in filtered_df.columns:
-    countries = st.sidebar.multiselect(
-        "Country",
-        filtered_df["COUNTRY"].dropna().unique()
+# -----------------------------
+# MAP
+# -----------------------------
+if not filtered_df.empty:
+    layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=filtered_df,
+        get_position=["LONGITUDE", "LATITUDE"],
+        get_fill_color=[255, 0, 0, 140],
+        get_radius=50000,
+        pickable=True,
     )
 
-    if countries:
-        filtered_df = filtered_df[filtered_df["COUNTRY"].isin(countries)]
+    tooltip = {
+        "html": "<b>Country:</b> {COUNTRY} <br/>"
+                "<b>Region:</b> {ADMIN1} <br/>"
+                "<b>Event Type:</b> {EVENT_TYPE} <br/>"
+                "<b>Fatalities:</b> {FATALITIES}",
+        "style": {"backgroundColor": "white", "color": "black"},
+    }
 
-if "FATALITIES" in filtered_df.columns:
-    max_fatalities = int(filtered_df["FATALITIES"].max())
-
-    fatality_range = st.sidebar.slider(
-        "Fatalities Range",
-        0,
-        max_fatalities,
-        (0, max_fatalities)
+    deck = pdk.Deck(
+        map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+        initial_view_state=pdk.ViewState(
+            latitude=filtered_df["LATITUDE"].mean(),
+            longitude=filtered_df["LONGITUDE"].mean(),
+            zoom=2,
+            pitch=0,
+        ),
+        layers=[layer],
+        tooltip=tooltip,
     )
 
-    filtered_df = filtered_df[
-        (filtered_df["FATALITIES"] >= fatality_range[0]) &
-        (filtered_df["FATALITIES"] <= fatality_range[1])
-    ]
-
-# -----------------------------
-# LIMIT DATA FOR PERFORMANCE
-# -----------------------------
-
-MAX_POINTS = 50000
-
-if len(filtered_df) > MAX_POINTS:
-    filtered_df = filtered_df.sample(MAX_POINTS)
-
-# -----------------------------
-# MAP LAYERS
-# -----------------------------
-
-scatter_layer = pdk.Layer(
-    "ScatterplotLayer",
-    data=filtered_df,
-    get_position="[LONGITUDE, LATITUDE]",
-    get_radius=5000,
-    get_fill_color=[255, 0, 0, 140],
-    pickable=True,
-)
-
-heatmap_layer = pdk.Layer(
-    "HeatmapLayer",
-    data=filtered_df,
-    get_position="[LONGITUDE, LATITUDE]"
-)
-
-view_state = pdk.ViewState(
-    latitude=20,
-    longitude=0,
-    zoom=2,
-    pitch=40
-)
-
-deck = pdk.Deck(
-    layers=[heatmap_layer, scatter_layer],
-    initial_view_state=view_state,
-    tooltip={"text": "{EVENT_TYPE}"}
-)
-
-st.pydeck_chart(deck)
-
-# -----------------------------
-# METRICS
-# -----------------------------
-
-st.subheader("📊 Event Statistics")
-
-col1, col2 = st.columns(2)
-
-total_events = len(filtered_df)
-total_fatalities = int(filtered_df["FATALITIES"].sum())
-
-col1.metric("Total Events", total_events)
-col2.metric("Total Fatalities", total_fatalities)
-
-# -----------------------------
-# DATA PREVIEW
-# -----------------------------
-
-with st.expander("View Filtered Dataset"):
-    st.dataframe(filtered_df.head(100))
+    st.pydeck_chart(deck)
+else:
+    st.info("No data with coordinates available for the map.")
