@@ -93,6 +93,11 @@ selected_types = st.multiselect(
 )
 
 filtered_df = combined_df[combined_df["EVENT_TYPE"].isin(selected_types)]
+
+# Limit number of points sent to the browser
+MAX_POINTS = 50000
+if len(filtered_df) > MAX_POINTS:
+    filtered_df = filtered_df.sample(MAX_POINTS)
 filtered_df = filtered_df.dropna(subset=[lat_col, lon_col])
 
 # --- Step 9: Build PyDeck map ---
