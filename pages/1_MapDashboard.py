@@ -97,6 +97,15 @@ else:
 # MAP
 # -----------------------------
 if not filtered_df.empty:
+# -----------------------------
+# LIMIT ROWS TO AVOID MESSAGE SIZE ERROR
+# -----------------------------
+MAX_ROWS = 50000  # maximum number of rows sent to the map
+
+if len(filtered_df) > MAX_ROWS:
+    st.warning(f"Too many rows ({len(filtered_df)}) for the map; showing first {MAX_ROWS} rows only.")
+    filtered_df = filtered_df.head(MAX_ROWS)  
+    # or use .sample(n=MAX_ROWS, random_state=42) for random
     layer = pdk.Layer(
         "ScatterplotLayer",
         data=filtered_df,
