@@ -1,10 +1,11 @@
+# pages/1_MapDashboard.py
 import streamlit as st
 import pandas as pd
 import pydeck as pdk
 
 st.title("🌍 Global Conflict Intelligence Map")
 
-# --- Load dataset safely ---
+# --- Load ACLED dataset ---
 try:
     df = pd.read_csv("acled_data.csv")
 except FileNotFoundError:
@@ -21,7 +22,6 @@ countries_affected = df["COUNTRY"].nunique()
 most_common_event = df["EVENT_TYPE"].mode()[0]
 
 col1, col2, col3, col4 = st.columns(4)
-
 col1.metric("Total Events", int(total_events))
 col2.metric("Total Fatalities", int(total_fatalities))
 col3.metric("Countries Affected", countries_affected)
@@ -43,15 +43,14 @@ df[lat_col] = pd.to_numeric(df[lat_col], errors="coerce")
 df[lon_col] = pd.to_numeric(df[lon_col], errors="coerce")
 df = df.dropna(subset=[lat_col, lon_col])
 
-# --- Event type filter ---
-selected_types = st.multiselect(
-    "Select event types to display:",
-    combined_df["EVENT_TYPE"].unique(),
-    default=combined_df["EVENT_TYPE"].unique()
-)
+# --- Simulate live feeds for Crime and Cybercrime ---
+crime_feed = pd.DataFrame(columns=df.columns)  # placeholder
+cyber_feed = pd.DataFrame(columns=df.columns)  # placeholder
 
-filtered_df = combined_df[combined_df["EVENT_TYPE"].isin(selected_types)]
-filtered_df = filtered_df.dropna(subset=["CENTROID_LATITUDE","CENTROID_LONGITUDE"])
+# You can replace above placeholders with real API calls later
+
+# --- Combine datasets ---
+combined_df = pd.concat([df, crime_feed, cyber_feed], ignore_index=True)
 
 # --- Event color mapping ---
 color_map = {
@@ -66,34 +65,44 @@ color_map = {
 }
 
 combined_df["color"] = combined_df["EVENT_TYPE"].map(color_map)
-combined_df["color"] = combined_df["color"].apply
-(lambda x: x if isinstance(x, list) else [200,200,200])(
-    
+combined_df["color"] = combined_df["color"].apply(lambda x: x if isinstance(x, list) else [200, 200, 200])
+
+# --- Event type filter ---
+selected_types = st.multiselect(
+    "Select event types to display:",
+    combined_df["EVENT_TYPE"].unique(),
+    default=combined_df["EVENT_TYPE"].unique()
 )
 
-# --- Map layer ---
+filtered_df = combined_df[combined_df["EVENT_TYPE"].isin(selected_types)]
+filtered_df = filtered_df.dropna(subset=[lat_col, lon_col])
+
+# --- Prepare PyDeck layer ---
 layer = pdk.Layer(
     "ScatterplotLayer",
     data=filtered_df,
-    get_position=["CENTROID_LONGITUDE","CENTROID_LATITUDE"],
+    get_position=[lon_col, lat_col],
     get_fill_color="color",
     get_radius=50000,
-    pickable=True,
+    pickable=True
 )
 
+# --- Tooltip ---
 tooltip = {
     "html": "<b>Country:</b> {COUNTRY} <br/>"
             "<b>Region:</b> {ADMIN1} <br/>"
             "<b>Event Type:</b> {EVENT_TYPE} <br/>"
+            "<b>Sub-event:</b> {SUB_EVENT_TYPE} <br/>"
             "<b>Fatalities:</b> {FATALITIES}",
-    "style": {"backgroundColor":"white", "color":"black"},
+    "style": {"backgroundColor": "white", "color": "black"}
 }
 
+# --- Render Map ---
 deck = pdk.Deck(
     map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     initial_view_state=pdk.ViewState(
-        latitude=filtered_df["CENTROID_LATITUDE"].mean(),
-        longitude=filtered_df["CENTROID_LONGITUDE"].mean(),
+        latitude=filtered_df[lat_col].mean(),
+        longitude=filtered_df[lon_col].mean(),
         zoom=2,
         pitch=0
     ),
