@@ -3,6 +3,19 @@ import pandas as pd
 
 st.title("🌍 Global Conflict Intelligence Map")
 
+# --- Analyst Metrics ---
+total_events = df["EVENTS"].sum()
+total_fatalities = df["FATALITIES"].sum()
+countries_affected = df["COUNTRY"].nunique()
+most_common_event = df["EVENT_TYPE"].mode()[0]
+
+col1, col2, col3, col4 = st.columns(4)
+
+col1.metric("Total Events", int(total_events))
+col2.metric("Total Fatalities", int(total_fatalities))
+col3.metric("Countries Affected", countries_affected)
+col4.metric("Most Common Event", most_common_event)
+
 # Load dataset
 try:
     df = pd.read_csv("acled_data.csv", nrows=5000)
