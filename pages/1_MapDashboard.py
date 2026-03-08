@@ -35,11 +35,35 @@ selected_types = st.multiselect("Select event types to display:", event_types, d
 
 filtered_df = df[df["EVENT_TYPE"].isin(selected_types)]
 
-# --- Prepare map data ---
-map_data = filtered_df[[lat_col, lon_col]]
-map_data.columns = ["lat", "lon"]
+import pydeck as pdk
 
-# --- Show map ---
-st.map(map_data)
+# --- Prepare PyDeck map ---
+deck = pdk.Deck(
+    map_style="mapbox://styles/mapbox/light-v10",
+    initial_view_state=pdk.ViewState(
+        latitude=filtered_df[lat_col].mean(),
+        longitude=filtered_df[lon_col].mean(),
+        zoom=2,
+        pitch=0,
+    ),
+    layers=[
+        pdk.Layer(
+            "ScatterplotLayer",
+            data=filtered_df,
+            get_position=[lon_col, lat_col],
+            get_fill_color=[255, 0, 0, 140],
+            get_radius=50000,
+            pickable=True,
+        )
+    ],
+    tooltip={
+        "html": "<b>Country:</b> {COUNTRY} <br/>"
+                "<b>Region:</b> {ADMIN1} <br/>"
+                "<b>Event Type:</b> {EVENT_TYPE} <br/>"
+                "<b>Sub-event:</b> {SUB_EVENT_TYPE} <br/>"
+                "<b>Fatalities:</b> {FATALITIES}",
+        "style": {"backgroundColor": "white", "color": "black"},
+    },
+)
 
-st.write(f"Showing {len(filtered_df)} conflict events for selected types.")
+st.pydeck_chart(deck)
