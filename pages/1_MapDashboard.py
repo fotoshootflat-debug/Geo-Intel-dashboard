@@ -51,8 +51,8 @@ deck = pdk.Deck(
             "ScatterplotLayer",
             data=filtered_df,
             get_position=[lon_col, lat_col],
-            get_fill_color=[255, 0, 0, 140],
-            get_radius=50000,
+            get_fill_color="[255*(FATALITIES/10 + 0.5), 0, 0, 200]",
+            get_radius="FATALITIES*5000 + 10000",
             pickable=True,
         )
     ],
