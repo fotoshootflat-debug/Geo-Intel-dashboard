@@ -53,12 +53,26 @@ selected_types = st.multiselect(
 
 filtered_df = df[df["EVENT_TYPE"].isin(selected_types)]
 
+# --- Event color mapping ---
+color_map = {
+    "Battles": [255, 0, 0],
+    "Violence against civilians": [255, 140, 0],
+    "Protests": [0, 102, 255],
+    "Riots": [255, 215, 0],
+    "Strategic developments": [160, 32, 240]
+}
+
+filtered_df["color"] = filtered_df["EVENT_TYPE"].map(color_map)
+filtered_df["color"] = filtered_df["color"].apply(
+    lambda x: x if isinstance(x, list) else [200, 200, 200]
+)
+
 # --- Map layer ---
 layer = pdk.Layer(
     "ScatterplotLayer",
     data=filtered_df,
     get_position=[lon_col, lat_col],
-    get_fill_color=[255, 0, 0, 140],
+    get_fill_color="color",
     get_radius=50000,
     pickable=True,
 )
