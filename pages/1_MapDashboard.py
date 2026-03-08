@@ -94,7 +94,7 @@ if len(filtered_df) > MAX_ROWS:
     filtered_df = filtered_df.head(MAX_ROWS)
 
 # -----------------------------
-# COLOR-CODE EVENTS (robust)
+# ROBUST COLOR-CODE EVENTS
 # -----------------------------
 event_colors = {
     "war": [255, 0, 0, 140],
@@ -102,12 +102,25 @@ event_colors = {
     "cybercrime": [0, 255, 0, 140],
     "political violence": [255, 165, 0, 140],
 }
+# Define normalization function for mapping
+def map_event_color(event):
+    if pd.isna(event):
+        return [128,128,128,140]
+    e = str(event).strip().lower()
+    # Map variants
+    if "war" in e:
+        return event_colors["war"]
+    elif "crime" in e and "cyber" not in e:
+        return event_colors["crime"]
+    elif "cyber" in e:
+        return event_colors["cybercrime"]
+    elif "political" in e:
+        return event_colors["political violence"]
+    else:
+        return [128,128,128,140]  # default gray
 
-if not filtered_df.empty:
-    # Normalize event_type
-    filtered_df["event_type_norm"] = filtered_df["event_type"].str.lower().str.strip()
-    # Map to colors
-    filtered_df["color"] = filtered_df["event_type_norm"].apply(lambda x: event_colors.get(x, [128,128,128,140]))
+# Apply mapping
+filtered_df["color"] = filtered_df["event_type"].apply(map_event_color)
 
 # -----------------------------
 # MAP
