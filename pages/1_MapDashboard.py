@@ -37,31 +37,48 @@ combined_df = pd.concat(dataframes, ignore_index=True)
 
 combined_df.columns = combined_df.columns.str.lower()
 
-# Standardize column names
-column_mapping = {
-    "latitude": "LATITUDE",
-    "longitude": "LONGITUDE",
-    "event_type": "EVENT_TYPE",
-    "fatalities": "FATALITIES",
-    "country": "COUNTRY"
-}
+# -----------------------------
+# COLUMN STANDARDIZATION
+# -----------------------------
 
-combined_df = combined_df.rename(columns=column_mapping)
+combined_df.columns = combined_df.columns.str.lower()
 
-required_columns = ["LATITUDE", "LONGITUDE"]
+# Possible column names used by datasets
+lat_options = ["latitude", "lat", "y"]
+lon_options = ["longitude", "lon", "lng", "x"]
 
-for col in required_columns:
-    if col not in combined_df.columns:
-        st.error(f"Dataset missing required column: {col}")
-        st.stop()
-# Ensure event type exists
-if "EVENT_TYPE" not in combined_df.columns:
+lat_col = None
+lon_col = None
+
+for col in combined_df.columns:
+    if col in lat_options:
+        lat_col = col
+    if col in lon_options:
+        lon_col = col
+
+if lat_col is None or lon_col is None:
+    st.error("Dataset does not contain recognizable latitude/longitude columns.")
+    st.stop()
+
+# Rename detected columns
+combined_df = combined_df.rename(columns={
+    lat_col: "LATITUDE",
+    lon_col: "LONGITUDE"
+})
+
+# Optional columns
+if "event_type" in combined_df.columns:
+    combined_df = combined_df.rename(columns={"event_type": "EVENT_TYPE"})
+else:
     combined_df["EVENT_TYPE"] = "Unknown"
 
-# Ensure fatalities exists
-if "FATALITIES" not in combined_df.columns:
+if "fatalities" in combined_df.columns:
+    combined_df = combined_df.rename(columns={"fatalities": "FATALITIES"})
+else:
     combined_df["FATALITIES"] = 0
 
+if "country" in combined_df.columns:
+    combined_df = combined_df.rename(columns={"country": "COUNTRY"})
 # -----------------------------
 # SIDEBAR FILTERS
 # -----------------------------
