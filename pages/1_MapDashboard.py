@@ -70,15 +70,30 @@ deck = pdk.Deck(
             pickable=True,
         )
     ],
- tooltip={
-    "html": "<b>Country:</b> {COUNTRY} <br/>"
-            "<b>Region:</b> {ADMIN1} <br/>"
-            "<b>Event Type:</b> {EVENT_TYPE} <br/>"
-            "<b>Sub-event:</b> {SUB_EVENT_TYPE} <br/>"
-            "<b>Fatalities:</b> {FATALITIES}",
-    "style": {"backgroundColor": "white", "color": "black"},
+tooltip = {
+    "html": """
+    <b>Country:</b> {COUNTRY} <br/>
+    <b>Region:</b> {ADMIN1} <br/>
+    <b>Event Type:</b> {EVENT_TYPE} <br/>
+    <b>Sub-event:</b> {SUB_EVENT_TYPE} <br/>
+    <b>Fatalities:</b> {FATALITIES}
+    """,
+    "style": {
+        "backgroundColor": "white",
+        "color": "black"
+    }
 }
-}
+
+deck = pdk.Deck(
+    map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+    initial_view_state=pdk.ViewState(
+        latitude=filtered_df[lat_col].mean(),
+        longitude=filtered_df[lon_col].mean(),
+        zoom=2,
+        pitch=0,
+    ),
+    layers=[layer],
+    tooltip=tooltip
 )
 
 st.pydeck_chart(deck)
