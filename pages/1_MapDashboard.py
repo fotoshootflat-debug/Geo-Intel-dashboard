@@ -57,8 +57,16 @@ for col in combined_df.columns:
         lon_col = col
 
 if lat_col is None or lon_col is None:
-    st.error("Dataset does not contain recognizable latitude/longitude columns.")
-    st.stop()
+    st.warning("Dataset has no coordinates and will be ignored for the map.")
+    combined_df = combined_df.dropna()
+else:
+    combined_df = combined_df.rename(columns={
+        lat_col: "LATITUDE",
+        lon_col: "LONGITUDE"
+    })
+
+# Drop rows without coordinates (for map)
+combined_df = combined_df.dropna(subset=["LATITUDE", "LONGITUDE"], errors="ignore")
 
 # Rename detected columns
 combined_df = combined_df.rename(columns={
