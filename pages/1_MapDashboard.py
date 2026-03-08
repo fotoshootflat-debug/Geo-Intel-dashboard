@@ -94,19 +94,20 @@ if len(filtered_df) > MAX_ROWS:
     filtered_df = filtered_df.head(MAX_ROWS)
 
 # -----------------------------
-# COLOR-CODE EVENTS
+# COLOR-CODE EVENTS (robust)
 # -----------------------------
 event_colors = {
-    "War": [255, 0, 0, 140],
-    "Crime": [0, 0, 255, 140],
-    "Cybercrime": [0, 255, 0, 140],
-    "Political Violence": [255, 165, 0, 140],
-    "Unknown": [128, 128, 128, 140]
+    "war": [255, 0, 0, 140],
+    "crime": [0, 0, 255, 140],
+    "cybercrime": [0, 255, 0, 140],
+    "political violence": [255, 165, 0, 140],
 }
 
 if not filtered_df.empty:
-    # Fix TypeError by using apply instead of fillna
-    filtered_df["color"] = filtered_df["event_type"].apply(lambda x: event_colors.get(x, [128,128,128,140]))
+    # Normalize event_type
+    filtered_df["event_type_norm"] = filtered_df["event_type"].str.lower().str.strip()
+    # Map to colors
+    filtered_df["color"] = filtered_df["event_type_norm"].apply(lambda x: event_colors.get(x, [128,128,128,140]))
 
 # -----------------------------
 # MAP
