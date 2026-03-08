@@ -36,7 +36,7 @@ selected_types = st.multiselect("Select event types to display:", event_types, d
 filtered_df = df[df["EVENT_TYPE"].isin(selected_types)]
 
 import pydeck as pdk
-
+st.write("Unique regions in dataset:", filtered_df["ADMIN1"].unique())
 # --- Prepare PyDeck map ---
 deck = pdk.Deck(
     map_style="mapbox://styles/mapbox/light-v10",
@@ -51,19 +51,19 @@ deck = pdk.Deck(
             "ScatterplotLayer",
             data=filtered_df,
             get_position=[lon_col, lat_col],
-            get_fill_color="[255*(FATALITIES/10 + 0.5), 0, 0, 200]",
-            get_radius="FATALITIES*5000 + 10000",
+            get_fill_color="[255, 0, 0, 140]",  # Keep red color
+            get_radius=5000,  # smaller radius to prevent huge overlapping
             pickable=True,
         )
     ],
-    tooltip={
-        "html": "<b>Country:</b> {COUNTRY} <br/>"
-                "<b>Region:</b> {ADMIN1} <br/>"
-                "<b>Event Type:</b> {EVENT_TYPE} <br/>"
-                "<b>Sub-event:</b> {SUB_EVENT_TYPE} <br/>"
-                "<b>Fatalities:</b> {FATALITIES}",
-        "style": {"backgroundColor": "white", "color": "black"},
-    },
+   tooltip={
+    "html": "<b>Country:</b> {COUNTRY} <br/>"
+            "<b>Region:</b> {ADMIN1 if ADMIN1 else 'N/A'} <br/>"
+            "<b>Event Type:</b> {EVENT_TYPE} <br/>"
+            "<b>Sub-event:</b> {SUB_EVENT_TYPE} <br/>"
+            "<b>Fatalities:</b> {FATALITIES if FATALITIES else 0}",
+    "style": {"backgroundColor": "white", "color": "black"},
+}
 )
 
 st.pydeck_chart(deck)
