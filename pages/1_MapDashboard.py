@@ -52,38 +52,34 @@ filtered_df = filtered_df.dropna(subset=[lat_col, lon_col])
 import pydeck as pdk
 st.write("Unique regions in dataset:", filtered_df["ADMIN1"].unique())
 # --- Prepare PyDeck map ---
-deck = pdk.Deck(
-    map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-    initial_view_state=pdk.ViewState(
-        latitude=filtered_df[lat_col].mean(),
-        longitude=filtered_df[lon_col].mean(),
-        zoom=2,
-        pitch=0,
-    ),
-    layers=[
-        pdk.Layer(
-            "ScatterplotLayer",
-            data=filtered_df,
-            get_position=[lon_col, lat_col],
-            get_fill_color="[255, 0, 0, 140]",  # Keep red color
-            get_radius=5000,  # smaller radius to prevent huge overlapping
-            pickable=True,
-        )
-    ],
+
+# --- Prepare map data ---
+lat_col = "CENTROID_LATITUDE"
+lon_col = "CENTROID_LONGITUDE"
+
+filtered_df = df.dropna(subset=[lat_col, lon_col])
+
+# --- Map layer ---
+layer = pdk.Layer(
+    "ScatterplotLayer",
+    data=filtered_df,
+    get_position=[lon_col, lat_col],
+    get_fill_color=[255, 0, 0, 140],
+    get_radius=50000,
+    pickable=True,
+)
+
+# --- Tooltip ---
 tooltip = {
-    "html": """
-    <b>Country:</b> {COUNTRY} <br/>
-    <b>Region:</b> {ADMIN1} <br/>
-    <b>Event Type:</b> {EVENT_TYPE} <br/>
-    <b>Sub-event:</b> {SUB_EVENT_TYPE} <br/>
-    <b>Fatalities:</b> {FATALITIES}
-    """,
-    "style": {
-        "backgroundColor": "white",
-        "color": "black"
-    }
+    "html": "<b>Country:</b> {COUNTRY} <br/>"
+            "<b>Region:</b> {ADMIN1} <br/>"
+            "<b>Event Type:</b> {EVENT_TYPE} <br/>"
+            "<b>Sub-event:</b> {SUB_EVENT_TYPE} <br/>"
+            "<b>Fatalities:</b> {FATALITIES}",
+    "style": {"backgroundColor": "white", "color": "black"},
 }
 
+# --- Deck map ---
 deck = pdk.Deck(
     map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     initial_view_state=pdk.ViewState(
@@ -93,7 +89,7 @@ deck = pdk.Deck(
         pitch=0,
     ),
     layers=[layer],
-    tooltip=tooltip
+    tooltip=tooltip,
 )
 
 st.pydeck_chart(deck)
