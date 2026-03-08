@@ -15,7 +15,7 @@ except pd.errors.ParserError:
     st.error("Error: Could not parse CSV file.")
     st.stop()
 
-# --- Ensure coordinate columns exist ---
+# --- Detect coordinate columns ---
 if "CENTROID_LATITUDE" in df.columns and "CENTROID_LONGITUDE" in df.columns:
     lat_col, lon_col = "CENTROID_LATITUDE", "CENTROID_LONGITUDE"
 elif "latitude" in df.columns and "longitude" in df.columns:
@@ -29,12 +29,13 @@ df[lat_col] = pd.to_numeric(df[lat_col], errors="coerce")
 df[lon_col] = pd.to_numeric(df[lon_col], errors="coerce")
 df = df.dropna(subset=[lat_col, lon_col])
 
-# --- Simulated live feeds (empty for now) ---
+# --- Simulated live feeds for War, Crime, Cybercrime ---
 crime_feed = pd.DataFrame(columns=df.columns)
 cyber_feed = pd.DataFrame(columns=df.columns)
+war_feed = pd.DataFrame(columns=df.columns)
 
 # --- Combine datasets ---
-combined_df = pd.concat([df, crime_feed, cyber_feed], ignore_index=True)
+combined_df = pd.concat([df, war_feed, crime_feed, cyber_feed], ignore_index=True)
 
 # --- Ensure required columns exist ---
 for col in ["EVENTS","FATALITIES","COUNTRY","EVENT_TYPE","ADMIN1","SUB_EVENT_TYPE"]:
@@ -66,7 +67,7 @@ color_map = {
 }
 
 combined_df["color"] = combined_df["EVENT_TYPE"].map(color_map)
-combined_df["color"] = combined_df["color"].apply(lambda x: x if isinstance(x, list) else [200,200,200])
+combined_df["color"] = combined_df["color"].apply(lambda x: x if isinstance(x, list) else [200, 200, 200])
 
 # --- Event type filter ---
 selected_types = st.multiselect(
@@ -78,7 +79,7 @@ selected_types = st.multiselect(
 filtered_df = combined_df[combined_df["EVENT_TYPE"].isin(selected_types)]
 filtered_df = filtered_df.dropna(subset=[lat_col, lon_col])
 
-# --- PyDeck layer ---
+# --- PyDeck map layer ---
 layer = pdk.Layer(
     "ScatterplotLayer",
     data=filtered_df,
