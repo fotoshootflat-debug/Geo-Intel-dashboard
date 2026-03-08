@@ -1,13 +1,21 @@
 import streamlit as st
 import pandas as pd
 
-st.title("🗺️ Intelligence Map")
+st.title("🌍 Global Conflict Intelligence Map")
 
-st.write("This map will display global intelligence data.")
+# Load ACLED dataset
+df = pd.read_csv("acled_data.csv")
 
-data = pd.DataFrame({
-    "lat": [34.0, 40.7, 48.8],
-    "lon": [-6.0, -74.0, 2.3]
-})
+# Ensure coordinates are numbers
+df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
+df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
 
-st.map(data)
+# Remove rows without coordinates
+df = df.dropna(subset=["latitude", "longitude"])
+
+st.write("Conflict events from ACLED dataset")
+
+map_data = df[["latitude","longitude"]]
+map_data.columns = ["lat","lon"]
+
+st.map(map_data)
