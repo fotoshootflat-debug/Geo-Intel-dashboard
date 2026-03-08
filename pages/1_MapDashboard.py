@@ -12,10 +12,7 @@ st.title("🌍 Global Intelligence Map")
 data_files = {
     "Latin America": "data/latin_america.csv",
     "US & Canada": "data/us_canada.csv",
-    "Europe & Central Asia": "data/europe_central_asia.csv",
-    "Africa": "data/africa.csv",
-    "Middle East": "data/middle_east.csv",
-    "Asia Pacific": "data/asia_pacific.csv"
+    "Europe & Central Asia": "data/europe_central_asia.csv"
 }
 
 dataframes = []
@@ -38,15 +35,25 @@ combined_df = pd.concat(dataframes, ignore_index=True)
 # STANDARDIZE COLUMNS
 # -----------------------------
 
-combined_df.columns = combined_df.columns.str.upper()
+combined_df.columns = combined_df.columns.str.lower()
+
+# Standardize column names
+column_mapping = {
+    "latitude": "LATITUDE",
+    "longitude": "LONGITUDE",
+    "event_type": "EVENT_TYPE",
+    "fatalities": "FATALITIES",
+    "country": "COUNTRY"
+}
+
+combined_df = combined_df.rename(columns=column_mapping)
 
 required_columns = ["LATITUDE", "LONGITUDE"]
 
 for col in required_columns:
     if col not in combined_df.columns:
-        st.error(f"Missing column: {col}")
+        st.error(f"Dataset missing required column: {col}")
         st.stop()
-
 # Ensure event type exists
 if "EVENT_TYPE" not in combined_df.columns:
     combined_df["EVENT_TYPE"] = "Unknown"
