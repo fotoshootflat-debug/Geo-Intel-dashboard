@@ -5,7 +5,7 @@ import pydeck as pdk
 
 st.title("🌍 Global Conflict Intelligence Map")
 
-# --- Load ACLED dataset ---
+# --- Step 1: Load ACLED dataset ---
 try:
     df = pd.read_csv("acled_data.csv")
 except FileNotFoundError:
@@ -15,7 +15,7 @@ except pd.errors.ParserError:
     st.error("Error: Could not parse CSV file.")
     st.stop()
 
-# --- Detect coordinate columns ---
+# --- Step 2: Detect coordinate columns ---
 if "CENTROID_LATITUDE" in df.columns and "CENTROID_LONGITUDE" in df.columns:
     lat_col, lon_col = "CENTROID_LATITUDE", "CENTROID_LONGITUDE"
 elif "latitude" in df.columns and "longitude" in df.columns:
@@ -24,25 +24,38 @@ else:
     st.error("Latitude/Longitude columns not found in dataset.")
     st.stop()
 
-# --- Clean coordinates ---
+# --- Step 3: Clean coordinates ---
 df[lat_col] = pd.to_numeric(df[lat_col], errors="coerce")
 df[lon_col] = pd.to_numeric(df[lon_col], errors="coerce")
 df = df.dropna(subset=[lat_col, lon_col])
 
-# --- Simulated live feeds for War, Crime, Cybercrime ---
-crime_feed = pd.DataFrame(columns=df.columns)
-cyber_feed = pd.DataFrame(columns=df.columns)
-war_feed = pd.DataFrame(columns=df.columns)
+# --- Step 4: Placeholder functions for live feeds ---
+def fetch_war_feed():
+    # Replace with real API call later
+    return pd.DataFrame(columns=df.columns)
 
-# --- Combine datasets ---
+def fetch_crime_feed():
+    # Replace with real API call later
+    return pd.DataFrame(columns=df.columns)
+
+def fetch_cybercrime_feed():
+    # Replace with real API call later
+    return pd.DataFrame(columns=df.columns)
+
+# --- Step 5: Get live feed data ---
+war_feed = fetch_war_feed()
+crime_feed = fetch_crime_feed()
+cyber_feed = fetch_cybercrime_feed()
+
+# --- Step 6: Combine datasets ---
 combined_df = pd.concat([df, war_feed, crime_feed, cyber_feed], ignore_index=True)
 
-# --- Ensure required columns exist ---
+# --- Step 7: Ensure required columns exist ---
 for col in ["EVENTS","FATALITIES","COUNTRY","EVENT_TYPE","ADMIN1","SUB_EVENT_TYPE"]:
     if col not in combined_df.columns:
         combined_df[col] = 0 if col in ["EVENTS","FATALITIES"] else "Unknown"
 
-# --- Analyst Metrics ---
+# --- Step 8: Analyst Metrics ---
 total_events = combined_df["EVENTS"].sum()
 total_fatalities = combined_df["FATALITIES"].sum()
 countries_affected = combined_df["COUNTRY"].nunique()
@@ -54,7 +67,7 @@ col2.metric("Total Fatalities", int(total_fatalities))
 col3.metric("Countries Affected", countries_affected)
 col4.metric("Most Common Event", most_common_event)
 
-# --- Event color mapping ---
+# --- Step 9: Event color mapping ---
 color_map = {
     "Battles": [255, 0, 0],
     "Violence against civilians": [255, 140, 0],
@@ -69,7 +82,7 @@ color_map = {
 combined_df["color"] = combined_df["EVENT_TYPE"].map(color_map)
 combined_df["color"] = combined_df["color"].apply(lambda x: x if isinstance(x, list) else [200, 200, 200])
 
-# --- Event type filter ---
+# --- Step 10: Event type filter ---
 selected_types = st.multiselect(
     "Select event types to display:",
     combined_df["EVENT_TYPE"].unique(),
@@ -79,7 +92,7 @@ selected_types = st.multiselect(
 filtered_df = combined_df[combined_df["EVENT_TYPE"].isin(selected_types)]
 filtered_df = filtered_df.dropna(subset=[lat_col, lon_col])
 
-# --- PyDeck map layer ---
+# --- Step 11: PyDeck map ---
 layer = pdk.Layer(
     "ScatterplotLayer",
     data=filtered_df,
