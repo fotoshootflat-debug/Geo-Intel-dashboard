@@ -105,7 +105,8 @@ event_colors = {
 }
 
 if not filtered_df.empty:
-    filtered_df["color"] = filtered_df["event_type"].map(event_colors).fillna([128, 128, 128, 140])
+    # Fix TypeError by using apply instead of fillna
+    filtered_df["color"] = filtered_df["event_type"].apply(lambda x: event_colors.get(x, [128,128,128,140]))
 
 # -----------------------------
 # MAP
