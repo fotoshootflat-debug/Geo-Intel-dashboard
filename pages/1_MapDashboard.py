@@ -53,7 +53,7 @@ import pydeck as pdk
 st.write("Unique regions in dataset:", filtered_df["ADMIN1"].unique())
 # --- Prepare PyDeck map ---
 deck = pdk.Deck(
-    map_style="mapbox://styles/mapbox/light-v10",
+    map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     initial_view_state=pdk.ViewState(
         latitude=filtered_df[lat_col].mean(),
         longitude=filtered_df[lon_col].mean(),
