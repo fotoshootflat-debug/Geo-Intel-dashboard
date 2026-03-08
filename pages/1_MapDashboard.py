@@ -3,23 +3,17 @@ import pandas as pd
 
 st.title("🌍 Global Conflict Intelligence Map")
 
-# ---- Safe loading of large ACLED dataset ----
+# Load dataset
 try:
-    # Only read first 5000 rows to avoid memory issues
     df = pd.read_csv("acled_data.csv", nrows=5000)
 except FileNotFoundError:
-    st.error("Error: acled_data.csv not found in the root folder.")
+    st.error("Error: acled_data.csv not found in root folder.")
     st.stop()
 except pd.errors.ParserError:
-    st.error("Error: Could not parse the CSV file. It may be too large or corrupted.")
+    st.error("Error: Could not parse CSV.")
     st.stop()
 
-# ---- Inspect columns ----
-st.write("Columns in dataset:")
-columns = list(df.columns)
-st.write(columns)
-
-# ---- Determine coordinate columns ----
+# Determine coordinate columns
 if "CENTROID_LATITUDE" in df.columns and "CENTROID_LONGITUDE" in df.columns:
     lat_col, lon_col = "CENTROID_LATITUDE", "CENTROID_LONGITUDE"
 elif "latitude" in df.columns and "longitude" in df.columns:
@@ -30,18 +24,22 @@ else:
     st.error("Latitude/Longitude columns not found in dataset.")
     st.stop()
 
-# ---- Convert coordinates to numeric ----
+# Convert coordinates to numeric
 df[lat_col] = pd.to_numeric(df[lat_col], errors="coerce")
 df[lon_col] = pd.to_numeric(df[lon_col], errors="coerce")
-
-# ---- Remove rows without coordinates ----
 df = df.dropna(subset=[lat_col, lon_col])
 
-# ---- Prepare map data ----
-map_data = df[[lat_col, lon_col]]
+# --- Interactive filter ---
+event_types = df["EVENT_TYPE"].unique()
+selected_types = st.multiselect("Select event types to display:", event_types, default=event_types)
+
+filtered_df = df[df["EVENT_TYPE"].isin(selected_types)]
+
+# --- Prepare map data ---
+map_data = filtered_df[[lat_col, lon_col]]
 map_data.columns = ["lat", "lon"]
 
-# ---- Show map ----
+# --- Show map ---
 st.map(map_data)
 
-st.write(f"Showing {len(df)} conflict events from the dataset.")
+st.write(f"Showing {len(filtered_df)} conflict events for selected types.")
