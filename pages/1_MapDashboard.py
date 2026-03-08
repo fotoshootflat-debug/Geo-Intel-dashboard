@@ -65,8 +65,7 @@ else:
         lon_col: "LONGITUDE"
     })
 
-# Drop rows without coordinates (for map)
-combined_df = combined_df.dropna(subset=["LATITUDE", "LONGITUDE"], errors="ignore")
+combined_df = combined_df.dropna(subset=["LATITUDE", "LONGITUDE"])
 
 # Rename detected columns
 combined_df = combined_df.rename(columns={
