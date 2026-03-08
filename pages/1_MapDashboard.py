@@ -2,16 +2,15 @@ import streamlit as st
 import pandas as pd
 import pydeck as pdk
 import glob
-import os
 
 st.title("🌍 Global Conflict Intelligence Map")
 
 # -----------------------------
-# LOAD ALL DATASETS FROM /data
+# LOAD ALL DATASETS
 # -----------------------------
 data_files = glob.glob("data/*.csv")
 if not data_files:
-    st.error("No data files found in /data folder.")
+    st.error("No CSV data files found in /data folder.")
     st.stop()
 
 df_list = []
@@ -30,36 +29,29 @@ if not df_list:
 combined_df = pd.concat(df_list, ignore_index=True)
 
 # -----------------------------
-# COLUMN STANDARDIZATION
+# STANDARDIZE COLUMN NAMES
 # -----------------------------
 combined_df.columns = combined_df.columns.str.lower()
 
-# Possible coordinate columns
+# Possible latitude/longitude columns
 lat_options = ["latitude", "lat", "y", "centroid_latitude"]
 lon_options = ["longitude", "lon", "lng", "x", "centroid_longitude"]
 
-lat_col = None
-lon_col = None
+lat_col = next((col for col in combined_df.columns if col in lat_options), None)
+lon_col = next((col for col in combined_df.columns if col in lon_options), None)
 
-for col in combined_df.columns:
-    if col in lat_options:
-        lat_col = col
-    if col in lon_options:
-        lon_col = col
-
-# Handle datasets without coordinates
 if lat_col is None or lon_col is None:
-    st.warning("No datasets have coordinates. Map will not display.")
+    st.warning("No coordinate data found. Map will not display.")
     map_df = pd.DataFrame()  # empty dataframe
 else:
     # Rename detected columns
     combined_df = combined_df.rename(columns={lat_col: "LATITUDE", lon_col: "LONGITUDE"})
-
+    
     # Optional columns
-    combined_df["EVENT_TYPE"] = combined_df.get("event_type", "Unknown")
-    combined_df["FATALITIES"] = combined_df.get("fatalities", 0)
-    combined_df["COUNTRY"] = combined_df.get("country", "Unknown")
-    combined_df["ADMIN1"] = combined_df.get("admin1", "")
+    combined_df["event_type"] = combined_df.get("event_type", "Unknown")
+    combined_df["fatalities"] = combined_df.get("fatalities", 0)
+    combined_df["country"] = combined_df.get("country", "Unknown")
+    combined_df["admin1"] = combined_df.get("admin1", "")
 
     # Drop rows without coordinates
     map_df = combined_df.dropna(subset=["LATITUDE", "LONGITUDE"])
@@ -68,10 +60,10 @@ else:
 # ANALYST METRICS
 # -----------------------------
 if not map_df.empty:
-    total_events = map_df["EVENT_TYPE"].count()
-    total_fatalities = map_df["FATALITIES"].sum()
-    countries_affected = map_df["COUNTRY"].nunique()
-    most_common_event = map_df["EVENT_TYPE"].mode()[0]
+    total_events = map_df["event_type"].count()
+    total_fatalities = map_df["fatalities"].sum()
+    countries_affected = map_df["country"].nunique()
+    most_common_event = map_df["event_type"].mode()[0]
 
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Events", int(total_events))
@@ -85,27 +77,28 @@ else:
 # EVENT TYPE FILTER
 # -----------------------------
 if not map_df.empty:
-    event_types = map_df["EVENT_TYPE"].unique()
+    event_types = map_df["event_type"].unique()
     selected_types = st.multiselect(
         "Select event types to display:", event_types, default=list(event_types)
     )
-    filtered_df = map_df[map_df["EVENT_TYPE"].isin(selected_types)]
+    filtered_df = map_df[map_df["event_type"].isin(selected_types)]
 else:
     filtered_df = pd.DataFrame()
+
+# -----------------------------
+# LIMIT ROWS TO AVOID MESSAGE SIZE ERROR
+# -----------------------------
+MAX_ROWS = 50000
+if len(filtered_df) > MAX_ROWS:
+    st.warning(f"Dataset too large for map ({len(filtered_df)} rows). Showing first {MAX_ROWS} rows only.")
+    filtered_df = filtered_df.head(MAX_ROWS)
+    # Or random sample:
+    # filtered_df = filtered_df.sample(n=MAX_ROWS, random_state=42)
 
 # -----------------------------
 # MAP
 # -----------------------------
 if not filtered_df.empty:
-# -----------------------------
-# LIMIT ROWS TO AVOID MESSAGE SIZE ERROR
-# -----------------------------
-MAX_ROWS = 50000  # maximum number of rows sent to the map
-
-if len(filtered_df) > MAX_ROWS:
-    st.warning(f"Too many rows ({len(filtered_df)}) for the map; showing first {MAX_ROWS} rows only.")
-    filtered_df = filtered_df.head(MAX_ROWS)  
-    # or use .sample(n=MAX_ROWS, random_state=42) for random
     layer = pdk.Layer(
         "ScatterplotLayer",
         data=filtered_df,
@@ -116,10 +109,10 @@ if len(filtered_df) > MAX_ROWS:
     )
 
     tooltip = {
-        "html": "<b>Country:</b> {COUNTRY} <br/>"
-                "<b>Region:</b> {ADMIN1} <br/>"
-                "<b>Event Type:</b> {EVENT_TYPE} <br/>"
-                "<b>Fatalities:</b> {FATALITIES}",
+        "html": "<b>Country:</b> {country} <br/>"
+                "<b>Region:</b> {admin1} <br/>"
+                "<b>Event Type:</b> {event_type} <br/>"
+                "<b>Fatalities:</b> {fatalities}",
         "style": {"backgroundColor": "white", "color": "black"},
     }
 
