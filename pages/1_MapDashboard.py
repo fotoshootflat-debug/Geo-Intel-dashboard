@@ -15,18 +15,6 @@ except pd.errors.ParserError:
     st.error("Error: Could not parse CSV file.")
     st.stop()
 
-# --- Analyst Metrics ---
-total_events = df["EVENTS"].sum()
-total_fatalities = df["FATALITIES"].sum()
-countries_affected = df["COUNTRY"].nunique()
-most_common_event = df["EVENT_TYPE"].mode()[0]
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Total Events", int(total_events))
-col2.metric("Total Fatalities", int(total_fatalities))
-col3.metric("Countries Affected", countries_affected)
-col4.metric("Most Common Event", most_common_event)
-
 # --- Detect coordinate columns ---
 if "CENTROID_LATITUDE" in df.columns and "CENTROID_LONGITUDE" in df.columns:
     lat_col, lon_col = "CENTROID_LATITUDE", "CENTROID_LONGITUDE"
@@ -43,14 +31,24 @@ df[lat_col] = pd.to_numeric(df[lat_col], errors="coerce")
 df[lon_col] = pd.to_numeric(df[lon_col], errors="coerce")
 df = df.dropna(subset=[lat_col, lon_col])
 
-# --- Simulate live feeds for Crime and Cybercrime ---
-crime_feed = pd.DataFrame(columns=df.columns)  # placeholder
-cyber_feed = pd.DataFrame(columns=df.columns)  # placeholder
-
-# You can replace above placeholders with real API calls later
+# --- Simulated live feeds for Crime and Cybercrime ---
+crime_feed = pd.DataFrame(columns=df.columns)  # empty placeholder
+cyber_feed = pd.DataFrame(columns=df.columns)  # empty placeholder
 
 # --- Combine datasets ---
 combined_df = pd.concat([df, crime_feed, cyber_feed], ignore_index=True)
+
+# --- Analyst Metrics ---
+total_events = combined_df["EVENTS"].sum()
+total_fatalities = combined_df["FATALITIES"].sum()
+countries_affected = combined_df["COUNTRY"].nunique()
+most_common_event = combined_df["EVENT_TYPE"].mode()[0]
+
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Events", int(total_events))
+col2.metric("Total Fatalities", int(total_fatalities))
+col3.metric("Countries Affected", countries_affected)
+col4.metric("Most Common Event", most_common_event)
 
 # --- Event color mapping ---
 color_map = {
@@ -77,7 +75,7 @@ selected_types = st.multiselect(
 filtered_df = combined_df[combined_df["EVENT_TYPE"].isin(selected_types)]
 filtered_df = filtered_df.dropna(subset=[lat_col, lon_col])
 
-# --- Prepare PyDeck layer ---
+# --- Prepare PyDeck map layer ---
 layer = pdk.Layer(
     "ScatterplotLayer",
     data=filtered_df,
@@ -97,7 +95,7 @@ tooltip = {
     "style": {"backgroundColor": "white", "color": "black"}
 }
 
-# --- Render Map ---
+# --- Render map ---
 deck = pdk.Deck(
     map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     initial_view_state=pdk.ViewState(
