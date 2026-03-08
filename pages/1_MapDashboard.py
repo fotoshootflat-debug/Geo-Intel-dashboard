@@ -12,11 +12,9 @@ data_files = {
     "Latin America & Caribbean": "data/latin_america.csv",
     "US & Canada": "data/us_canada.csv",
     "Europe & Central Asia": "data/europe_central_asia.csv",
-    "Political Violence": "data/political_violence.csv",
-    "Africa": "data/africa.csv",
-    "Middle East": "data/middle_east.csv",
-    "Asia Pacific": "data/asia_pacific.csv"
+    "Political Violence": "data/political_violence.csv"
 }
+
 
 dfs = {}
 for key, file in data_files.items():
