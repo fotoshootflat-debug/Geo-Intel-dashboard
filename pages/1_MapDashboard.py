@@ -186,8 +186,10 @@ deck = pdk.Deck(
         zoom=2,
         pitch=0
     ),
-    layers=[layer],
-    tooltip=tooltip
+    
+    r = pdk.Deck(
+    layers=[heatmap_layer, scatter_layer],
+    initial_view_state=view_state,
+    tooltip={"text": "{EVENT_TYPE}"}
 )
-
 st.pydeck_chart(deck)
