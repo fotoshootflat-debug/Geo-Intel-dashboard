@@ -9,9 +9,10 @@ st.title("🌍 Global Conflict Intelligence Map")
 # --- Step 1: Load datasets ---
 data_files = {
     "ACLED": "acled_data.csv",
-    "War": "data/war.csv",
-    "Crime": "data/crime.csv",
-    "Cybercrime": "data/cyber.csv"
+    "Latin America & Caribbean": "data/latin_america.csv",
+    "US & Canada": "data/us_canada.csv",
+    "Europe & Central Asia": "data/europe_central_asia.csv",
+    "Political Violence": "data/political_violence.csv"
 }
 
 dfs = {}
