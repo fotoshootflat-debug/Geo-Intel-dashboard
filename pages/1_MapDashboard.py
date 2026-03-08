@@ -33,7 +33,7 @@ combined_df = pd.concat(df_list, ignore_index=True)
 # -----------------------------
 combined_df.columns = combined_df.columns.str.lower()
 
-# Possible latitude/longitude columns
+# Detect latitude/longitude columns
 lat_options = ["latitude", "lat", "y", "centroid_latitude"]
 lon_options = ["longitude", "lon", "lng", "x", "centroid_longitude"]
 
@@ -46,8 +46,8 @@ if lat_col is None or lon_col is None:
 else:
     # Rename detected columns
     combined_df = combined_df.rename(columns={lat_col: "LATITUDE", lon_col: "LONGITUDE"})
-    
-    # Optional columns
+
+    # Standardize optional columns
     combined_df["event_type"] = combined_df.get("event_type", "Unknown")
     combined_df["fatalities"] = combined_df.get("fatalities", 0)
     combined_df["country"] = combined_df.get("country", "Unknown")
@@ -74,11 +74,11 @@ else:
     st.info("No coordinate-based data available for metrics.")
 
 # -----------------------------
-# EVENT TYPE FILTER
+# EVENT TYPE FILTER (sidebar)
 # -----------------------------
 if not map_df.empty:
     event_types = map_df["event_type"].unique()
-    selected_types = st.multiselect(
+    selected_types = st.sidebar.multiselect(
         "Select event types to display:", event_types, default=list(event_types)
     )
     filtered_df = map_df[map_df["event_type"].isin(selected_types)]
@@ -92,8 +92,20 @@ MAX_ROWS = 50000
 if len(filtered_df) > MAX_ROWS:
     st.warning(f"Dataset too large for map ({len(filtered_df)} rows). Showing first {MAX_ROWS} rows only.")
     filtered_df = filtered_df.head(MAX_ROWS)
-    # Or random sample:
-    # filtered_df = filtered_df.sample(n=MAX_ROWS, random_state=42)
+
+# -----------------------------
+# COLOR-CODE EVENTS
+# -----------------------------
+event_colors = {
+    "War": [255, 0, 0, 140],
+    "Crime": [0, 0, 255, 140],
+    "Cybercrime": [0, 255, 0, 140],
+    "Political Violence": [255, 165, 0, 140],
+    "Unknown": [128, 128, 128, 140]
+}
+
+if not filtered_df.empty:
+    filtered_df["color"] = filtered_df["event_type"].map(event_colors).fillna([128, 128, 128, 140])
 
 # -----------------------------
 # MAP
@@ -103,7 +115,7 @@ if not filtered_df.empty:
         "ScatterplotLayer",
         data=filtered_df,
         get_position=["LONGITUDE", "LATITUDE"],
-        get_fill_color=[255, 0, 0, 140],
+        get_fill_color="color",
         get_radius=50000,
         pickable=True,
     )
