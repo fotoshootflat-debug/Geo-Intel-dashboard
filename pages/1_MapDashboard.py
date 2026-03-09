@@ -55,6 +55,7 @@ else:
 
     # Drop rows without coordinates
     map_df = combined_df.dropna(subset=["LATITUDE", "LONGITUDE"])
+    
 
 # -----------------------------
 # ANALYST METRICS
@@ -72,19 +73,46 @@ if not map_df.empty:
     col4.metric("Most Common Event", most_common_event)
 else:
     st.info("No coordinate-based data available for metrics.")
-
 # -----------------------------
-# EVENT TYPE FILTER (sidebar)
+# SIDEBAR INTELLIGENCE FILTERS
 # -----------------------------
 if not map_df.empty:
-    event_types = map_df["event_type"].unique()
-    selected_types = st.sidebar.multiselect(
-        "Select event types to display:", event_types, default=list(event_types)
+
+    st.sidebar.header("Intelligence Filters")
+
+    # Country filter
+    countries = sorted(map_df["country"].dropna().unique())
+    selected_countries = st.sidebar.multiselect(
+        "Select Countries",
+        countries,
+        default=countries
     )
-    filtered_df = map_df[map_df["event_type"].isin(selected_types)]
+
+    # Event type filter
+    event_types = sorted(map_df["event_type"].dropna().unique())
+    selected_events = st.sidebar.multiselect(
+        "Select Event Types",
+        event_types,
+        default=event_types
+    )
+
+    # Fatality threshold
+    min_fatalities = st.sidebar.slider(
+        "Minimum Fatalities",
+        0,
+        int(map_df["fatalities"].max()),
+        0
+    )
+
+    # Apply filters
+    filtered_df = map_df[
+        (map_df["country"].isin(selected_countries)) &
+        (map_df["event_type"].isin(selected_events)) &
+        (map_df["fatalities"] >= min_fatalities)
+    ]
+
 else:
     filtered_df = pd.DataFrame()
-
 # -----------------------------
 # LIMIT ROWS TO AVOID MESSAGE SIZE ERROR
 # -----------------------------
