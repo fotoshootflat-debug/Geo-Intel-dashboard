@@ -12,36 +12,37 @@ st.title("🌍 Live Geopolitical Intelligence Dashboard")
 # ------------------------------------------------
 # LOAD LIVE GDELT DATA
 # ------------------------------------------------
-
-@st.cache_data(ttl=600)
+  @st.cache_data(ttl=600)
 def load_gdelt():
 
-    url = "https://api.gdeltproject.org/api/v2/events/last24hours?format=CSV"
+    url = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
 
     try:
-        df = pd.read_csv(url)
+        # Get latest update file
+        r = requests.get(url)
+        latest_file = r.text.split()[-1]
+
+        csv_url = f"http://data.gdeltproject.org/gdeltv2/{latest_file}"
+
+        df = pd.read_csv(csv_url, sep="\t", header=None)
 
         df = df.rename(columns={
-            "ActionGeo_Lat": "LATITUDE",
-            "ActionGeo_Long": "LONGITUDE",
-            "Actor1Name": "ACTOR1",
-            "Actor2Name": "ACTOR2",
-            "EventRootCode": "EVENT_TYPE",
-            "EventCode": "SUB_EVENT_TYPE",
-            "GoldsteinScale": "SCORE",
-            "ActionGeo_CountryCode": "COUNTRY"
+            53: "LATITUDE",
+            54: "LONGITUDE",
+            7: "ACTOR1",
+            17: "ACTOR2",
+            26: "EVENT_TYPE",
+            27: "SUB_EVENT_TYPE",
+            30: "SCORE",
+            51: "COUNTRY"
         })
 
         return df
 
-    except:
+    except Exception as e:
+
+        st.error(f"GDELT feed error: {e}")
         return pd.DataFrame()
-
-gdelt_df = load_gdelt()
-
-if gdelt_df.empty:
-    st.error("Live event feed could not be loaded.")
-    st.stop()
 
 # ------------------------------------------------
 # GLOBAL HOTSPOT MAP
