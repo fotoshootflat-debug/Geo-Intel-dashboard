@@ -169,7 +169,7 @@ if not filtered_df.empty:
     get_position=["LONGITUDE", "LATITUDE"],
     aggregation=pdk.types.String("MEAN"),
     get_weight=1,
-    radiusPixels=30,
+    radiusPixels=20,
 )
     layer = pdk.Layer(
         "ScatterplotLayer",
