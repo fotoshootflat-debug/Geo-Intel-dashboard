@@ -56,13 +56,14 @@ def load_gdelt():
 
 gdelt_df = load_gdelt()
 
-if gdelt_df.empty:
-    st.error("Live event feed could not be loaded.")
-    st.stop()
-# Clean dataframe for PyDeck
+# Convert coordinates safely
+gdelt_df["LATITUDE"] = pd.to_numeric(gdelt_df["LATITUDE"], errors="coerce")
+gdelt_df["LONGITUDE"] = pd.to_numeric(gdelt_df["LONGITUDE"], errors="coerce")
+
+# Remove rows with invalid coordinates
 gdelt_df = gdelt_df.dropna(subset=["LATITUDE", "LONGITUDE"])
-gdelt_df["LATITUDE"] = gdelt_df["LATITUDE"].astype(float)
-gdelt_df["LONGITUDE"] = gdelt_df["LONGITUDE"].astype(float)
+
+gdelt_df = gdelt_df.reset_index(drop=True)
 
 # Convert to pure python types
 gdelt_df = gdelt_df.reset_index(drop=True)
@@ -106,6 +107,10 @@ countries = sorted(gdelt_df["COUNTRY"].dropna().unique())
 country_selected = st.selectbox("Select Country", countries)
 
 country_df = gdelt_df[gdelt_df["COUNTRY"] == country_selected].copy()
+country_df["LATITUDE"] = pd.to_numeric(country_df["LATITUDE"], errors="coerce")
+country_df["LONGITUDE"] = pd.to_numeric(country_df["LONGITUDE"], errors="coerce")
+
+country_df = country_df.dropna(subset=["LATITUDE", "LONGITUDE"])
 
 country_df["LATITUDE"] = country_df["LATITUDE"].astype(float)
 country_df["LONGITUDE"] = country_df["LONGITUDE"].astype(float)
