@@ -1,8 +1,39 @@
+
 import streamlit as st
 import pandas as pd
 import pydeck as pdk
 import glob
+import requests
+import io
 
+# -----------------------------
+# LIVE GDELT EVENTS
+# -----------------------------
+def fetch_gdelt_events():
+    try:
+        # Latest GDELT event feed (last 15 min)
+        url = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
+        latest_file = requests.get(url).text.split()[-1]
+        csv_url = f"http://data.gdeltproject.org/gdeltv2/{latest_file}"
+        
+        r = requests.get(csv_url)
+        if r.status_code != 200:
+            return pd.DataFrame()  # return empty if fetch fails
+
+        # GDELT has no headers, tab-separated
+        df = pd.read_csv(io.StringIO(r.text), sep="\t", header=None, dtype=str, error_bad_lines=False)
+        # Only keep relevant columns: country, lat, lon, event type, date
+        df = df[[0, 50, 51, 27, 1]]  # country, lat, lon, event code, date
+        df.columns = ["COUNTRY", "LATITUDE", "LONGITUDE", "EVENT_TYPE", "DATE"]
+        df = df.dropna(subset=["LATITUDE", "LONGITUDE"])
+        df["LATITUDE"] = pd.to_numeric(df["LATITUDE"], errors="coerce")
+        df["LONGITUDE"] = pd.to_numeric(df["LONGITUDE"], errors="coerce")
+        return df
+    except:
+        return pd.DataFrame()
+
+# Fetch GDELT events
+gdelt_df = fetch_gdelt_events()
 # Auto-refresh every 60 seconds
 from streamlit_autorefresh import st_autorefresh
 
@@ -32,8 +63,16 @@ if not df_list:
     st.stop()
 
 # Combine all datasets
-combined_df = pd.concat(df_list, ignore_index=True)
-
+# Existing CSVs are loaded and combined
+map_df = pd.concat([africa_df, asia_df, europe_df, latin_df, us_df], ignore_index=True)
+# -----------------------------
+# MERGE LIVE GDELT EVENTS
+# -----------------------------
+if not gdelt_df.empty:
+    # Filter for your types: War / Crime / Cybercrime
+    gdelt_df = gdelt_df[gdelt_df["EVENT_TYPE"].str.contains("WAR|CRIME|CYBER", case=False, na=False)]
+    # Merge GDELT events into the main map dataframe
+    map_df = pd.concat([map_df, gdelt_df], ignore_index=True)
 # -----------------------------
 # STANDARDIZE COLUMN NAMES
 # -----------------------------
