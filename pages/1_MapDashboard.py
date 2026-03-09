@@ -163,6 +163,14 @@ filtered_df["color"] = filtered_df[event_col].apply(map_event_color)
 # MAP
 # -----------------------------
 if not filtered_df.empty:
+    heatmap_layer = pdk.Layer(
+    "HeatmapLayer",
+    data=filtered_df,
+    get_position=["LONGITUDE", "LATITUDE"],
+    aggregation=pdk.types.String("MEAN"),
+    get_weight=1,
+    radiusPixels=60,
+)
     layer = pdk.Layer(
         "ScatterplotLayer",
         data=filtered_df,
@@ -188,7 +196,7 @@ if not filtered_df.empty:
             zoom=2,
             pitch=0,
         ),
-        layers=[layer],
+        layers=[heatmap_layer, layer],
         tooltip=tooltip,
     )
 
