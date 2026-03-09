@@ -163,14 +163,18 @@ filtered_df["color"] = filtered_df[event_col].apply(map_event_color)
 # MAP
 # -----------------------------
 if not filtered_df.empty:
+
+    # Heatmap layer
     heatmap_layer = pdk.Layer(
-    "HeatmapLayer",
-    data=filtered_df,
-    get_position=["LONGITUDE", "LATITUDE"],
-    aggregation=pdk.types.String("MEAN"),
-    get_weight=1,
-    radiusPixels=20,
-)
+        "HeatmapLayer",
+        data=filtered_df,
+        get_position=["LONGITUDE", "LATITUDE"],
+        aggregation="MEAN",
+        get_weight=1,
+        radiusPixels=20,
+    )
+
+    # Scatterplot layer
     layer = pdk.Layer(
         "ScatterplotLayer",
         data=filtered_df,
@@ -189,19 +193,18 @@ if not filtered_df.empty:
     }
 
     deck = pdk.Deck(
-       deck = pdk.Deck(
-    map_style="light",
-    initial_view_state=pdk.ViewState(
-        latitude=20,
-        longitude=0,
-        zoom=1.6,
-        pitch=0,
-    ),
-    layers=[heatmap_layer, layer],
-    tooltip=tooltip,
-)
+        map_style="light",
+        initial_view_state=pdk.ViewState(
+            latitude=20,
+            longitude=0,
+            zoom=1.6,
+            pitch=0,
+        ),
+        layers=[heatmap_layer, layer],
+        tooltip=tooltip,
     )
 
     st.pydeck_chart(deck)
+
 else:
-    st.info("No data with coordinates available for the map.")
+    st.info("No data available for the map.")
