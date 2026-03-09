@@ -1,29 +1,49 @@
-
+# 1_MapDashboard.py
 import streamlit as st
 import pandas as pd
 import pydeck as pdk
-import glob
+import os
 import requests
 import io
 
+st.set_page_config(page_title="🌍 Global Conflict Intelligence Map", layout="wide")
+
+st.title("🌍 Global Conflict Intelligence Map")
+
 # -----------------------------
-# LIVE GDELT EVENTS
+# LOAD REGIONAL CSV FILES
+# -----------------------------
+data_path = "data"  # folder where CSVs are uploaded
+
+def load_csv(file_name):
+    file_path = os.path.join(data_path, file_name)
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path)
+    else:
+        return pd.DataFrame()
+
+africa_df = load_csv("africa.csv")
+asia_df = load_csv("asia_pacific.csv")
+europe_df = load_csv("europe_central_asia.csv")
+latin_df = load_csv("latin_america_the_caribbean.csv")
+us_df = load_csv("us_and_canada.csv")
+political_df = load_csv("political_violence.csv")  # optional
+
+# -----------------------------
+# FETCH LIVE GDELT EVENTS
 # -----------------------------
 def fetch_gdelt_events():
     try:
-        # Latest GDELT event feed (last 15 min)
         url = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
         latest_file = requests.get(url).text.split()[-1]
         csv_url = f"http://data.gdeltproject.org/gdeltv2/{latest_file}"
-        
+
         r = requests.get(csv_url)
         if r.status_code != 200:
-            return pd.DataFrame()  # return empty if fetch fails
+            return pd.DataFrame()
 
-        # GDELT has no headers, tab-separated
         df = pd.read_csv(io.StringIO(r.text), sep="\t", header=None, dtype=str, error_bad_lines=False)
-        # Only keep relevant columns: country, lat, lon, event type, date
-        df = df[[0, 50, 51, 27, 1]]  # country, lat, lon, event code, date
+        df = df[[0, 50, 51, 27, 1]]
         df.columns = ["COUNTRY", "LATITUDE", "LONGITUDE", "EVENT_TYPE", "DATE"]
         df = df.dropna(subset=["LATITUDE", "LONGITUDE"])
         df["LATITUDE"] = pd.to_numeric(df["LATITUDE"], errors="coerce")
@@ -32,224 +52,115 @@ def fetch_gdelt_events():
     except:
         return pd.DataFrame()
 
-# Fetch GDELT events
 gdelt_df = fetch_gdelt_events()
-# Auto-refresh every 60 seconds
-from streamlit_autorefresh import st_autorefresh
-
-# This triggers page reload every 60 seconds
-st_autorefresh(interval=60000, key="data_refresh")
-
-st.title("🌍 Global Conflict Intelligence Map")
 
 # -----------------------------
-# LOAD ALL DATASETS
+# COMBINE CSVs AND GDELT
 # -----------------------------
-data_files = glob.glob("data/*.csv")
-if not data_files:
-    st.error("No CSV data files found in /data folder.")
-    st.stop()
-
-df_list = []
-for file in data_files:
-    try:
-        df = pd.read_csv(file)
-        df_list.append(df)
-    except Exception as e:
-        st.warning(f"Could not load {file}: {e}")
-
-if not df_list:
-    st.error("No datasets could be loaded.")
-    st.stop()
-
-# Combine all datasets
-# Existing CSVs are loaded and combined
 map_df = pd.concat([africa_df, asia_df, europe_df, latin_df, us_df], ignore_index=True)
-# -----------------------------
-# MERGE LIVE GDELT EVENTS
-# -----------------------------
+
 if not gdelt_df.empty:
-    # Filter for your types: War / Crime / Cybercrime
     gdelt_df = gdelt_df[gdelt_df["EVENT_TYPE"].str.contains("WAR|CRIME|CYBER", case=False, na=False)]
-    # Merge GDELT events into the main map dataframe
     map_df = pd.concat([map_df, gdelt_df], ignore_index=True)
+
 # -----------------------------
-# STANDARDIZE COLUMN NAMES
+# CHECK FOR COORDINATES
 # -----------------------------
-combined_df.columns = combined_df.columns.str.lower()
+lat_candidates = ["LATITUDE", "latitude", "CENTROID_LATITUDE", "centroid_latitude"]
+lon_candidates = ["LONGITUDE", "longitude", "CENTROID_LONGITUDE", "centroid_longitude"]
 
-# Detect latitude/longitude columns
-lat_options = ["latitude", "lat", "y", "centroid_latitude"]
-lon_options = ["longitude", "lon", "lng", "x", "centroid_longitude"]
+lat_col = next((c for c in lat_candidates if c in map_df.columns), None)
+lon_col = next((c for c in lon_candidates if c in map_df.columns), None)
 
-lat_col = next((col for col in combined_df.columns if col in lat_options), None)
-lon_col = next((col for col in combined_df.columns if col in lon_options), None)
+if not lat_col or not lon_col:
+    st.error("Dataset does not contain recognizable latitude/longitude columns.")
+    st.stop()
 
-if lat_col is None or lon_col is None:
-    st.warning("No coordinate data found. Map will not display.")
-    map_df = pd.DataFrame()  # empty dataframe
-else:
-    # Rename detected columns
-    combined_df = combined_df.rename(columns={lat_col: "LATITUDE", lon_col: "LONGITUDE"})
-
-    # Standardize optional columns
-    combined_df["event_type"] = combined_df.get("event_type", "Unknown")
-    combined_df["fatalities"] = combined_df.get("fatalities", 0)
-    combined_df["country"] = combined_df.get("country", "Unknown")
-    combined_df["admin1"] = combined_df.get("admin1", "")
-
-    # Drop rows without coordinates
-    map_df = combined_df.dropna(subset=["LATITUDE", "LONGITUDE"])
-    
+map_df[lat_col] = pd.to_numeric(map_df[lat_col], errors="coerce")
+map_df[lon_col] = pd.to_numeric(map_df[lon_col], errors="coerce")
+map_df = map_df.dropna(subset=[lat_col, lon_col])
 
 # -----------------------------
 # ANALYST METRICS
 # -----------------------------
-if not map_df.empty:
-    total_events = map_df["event_type"].count()
-    total_fatalities = map_df["fatalities"].sum()
-    countries_affected = map_df["country"].nunique()
-    most_common_event = map_df["event_type"].mode()[0]
+total_events = len(map_df)
+total_fatalities = map_df.get("FATALITIES", pd.Series([0]*len(map_df))).sum()
+countries_affected = map_df["COUNTRY"].nunique() if "COUNTRY" in map_df.columns else 0
+most_common_event = map_df["EVENT_TYPE"].mode()[0] if "EVENT_TYPE" in map_df.columns else "N/A"
 
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Events", int(total_events))
-    col2.metric("Total Fatalities", int(total_fatalities))
-    col3.metric("Countries Affected", countries_affected)
-    col4.metric("Most Common Event", most_common_event)
-else:
-    st.info("No coordinate-based data available for metrics.")
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Total Events", int(total_events))
+col2.metric("Total Fatalities", int(total_fatalities))
+col3.metric("Countries Affected", countries_affected)
+col4.metric("Most Common Event", most_common_event)
+
 # -----------------------------
-# SIDEBAR INTELLIGENCE FILTERS
+# EVENT TYPE FILTER (sidebar)
 # -----------------------------
 if not map_df.empty:
-
-    st.sidebar.header("Intelligence Filters")
-
-    # Country filter
-    countries = sorted(map_df["country"].dropna().unique())
-    selected_countries = st.sidebar.multiselect(
-        "Select Countries",
-        countries,
-        default=countries
+    event_types = map_df["EVENT_TYPE"].unique()
+    selected_types = st.sidebar.multiselect(
+        "Select event types to display:", event_types, default=list(event_types)
     )
-
-    # Event type filter
-    event_types = sorted(map_df["event_type"].dropna().unique())
-    selected_events = st.sidebar.multiselect(
-        "Select Event Types",
-        event_types,
-        default=event_types
-    )
-
-    # Fatality threshold
-    min_fatalities = st.sidebar.slider(
-        "Minimum Fatalities",
-        0,
-        int(map_df["fatalities"].max()),
-        0
-    )
-
-    # Apply filters
-    filtered_df = map_df[
-        (map_df["country"].isin(selected_countries)) &
-        (map_df["event_type"].isin(selected_events)) &
-        (map_df["fatalities"] >= min_fatalities)
-    ]
-
+    filtered_df = map_df[map_df["EVENT_TYPE"].isin(selected_types)]
 else:
     filtered_df = pd.DataFrame()
+
 # -----------------------------
-# LIMIT ROWS TO AVOID MESSAGE SIZE ERROR
+# SIDEBAR: LATEST LIVE EVENTS
 # -----------------------------
+if not gdelt_df.empty:
+    st.sidebar.subheader("Latest Events (GDELT)")
+    latest_events = gdelt_df.sort_values("DATE", ascending=False).head(10)
+    for _, row in latest_events.iterrows():
+        st.sidebar.write(f"{row['COUNTRY']} — {row['EVENT_TYPE']} — {row['DATE']}")
+
+# -----------------------------
+# PREPARE MAP LAYER
+# -----------------------------
+# Assign colors by event type
+event_colors = {}
+unique_events = filtered_df["EVENT_TYPE"].unique() if not filtered_df.empty else []
+import random
+for ev in unique_events:
+    event_colors[ev] = [random.randint(50, 255), random.randint(50, 255), random.randint(50, 255), 140]
+
+filtered_df["color"] = filtered_df["EVENT_TYPE"].map(event_colors)
+filtered_df["color"] = filtered_df["color"].apply(lambda x: x if isinstance(x, list) else [128, 128, 128, 140])
+
+# Limit rows to prevent browser overload
 MAX_ROWS = 50000
 if len(filtered_df) > MAX_ROWS:
     st.warning(f"Dataset too large for map ({len(filtered_df)} rows). Showing first {MAX_ROWS} rows only.")
     filtered_df = filtered_df.head(MAX_ROWS)
 
-# -----------------------------
-# ROBUST COLOR-CODE EVENTS
-# -----------------------------
-# First, detect the correct event column
-for col_candidate in ["event_type", "eventtype", "type", "EVENT_TYPE"]:
-    if col_candidate in filtered_df.columns:
-        event_col = col_candidate
-        break
-else:
-    filtered_df["event_type"] = "Unknown"
-    event_col = "event_type"
+layer = pdk.Layer(
+    "ScatterplotLayer",
+    data=filtered_df,
+    get_position=[lon_col, lat_col],
+    get_fill_color="color",
+    get_radius=20000,
+    pickable=True,
+)
 
-# Define event color mapping
-event_colors = {
-    "war": [255, 0, 0, 140],
-    "crime": [0, 0, 255, 140],
-    "cybercrime": [0, 255, 0, 140],
-    "political violence": [255, 165, 0, 140],
+tooltip = {
+    "html": "<b>Country:</b> {COUNTRY} <br/>"
+            "<b>Event Type:</b> {EVENT_TYPE} <br/>"
+            "<b>Fatalities:</b> {FATALITIES} <br/>"
+            "<b>Date:</b> {DATE}",
+    "style": {"backgroundColor": "white", "color": "black"},
 }
 
-# Function to normalize and map any event type to color
-def map_event_color(event_value):
-    if pd.isna(event_value):
-        return [128,128,128,140]  # gray
-    e = str(event_value).lower()
-    if "war" in e:
-        return event_colors["war"]
-    elif "cyber" in e:
-        return event_colors["cybercrime"]
-    elif "crime" in e:
-        return event_colors["crime"]
-    elif "political" in e:
-        return event_colors["political violence"]
-    else:
-        return [128,128,128,140]  # gray for unknown
+deck = pdk.Deck(
+    map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+    initial_view_state=pdk.ViewState(
+        latitude=filtered_df[lat_col].mean() if not filtered_df.empty else 0,
+        longitude=filtered_df[lon_col].mean() if not filtered_df.empty else 0,
+        zoom=2,
+        pitch=0,
+    ),
+    layers=[layer],
+    tooltip=tooltip,
+)
 
-# Apply mapping
-filtered_df["color"] = filtered_df[event_col].apply(map_event_color)
-# -----------------------------
-# MAP
-# -----------------------------
-if not filtered_df.empty:
-
-    # Heatmap layer
-    heatmap_layer = pdk.Layer(
-        "HeatmapLayer",
-        data=filtered_df,
-        get_position=["LONGITUDE", "LATITUDE"],
-        aggregation="MEAN",
-        get_weight=1,
-        radiusPixels=20,
-    )
-
-    # Scatterplot layer
-    layer = pdk.Layer(
-        "ScatterplotLayer",
-        data=filtered_df,
-        get_position=["LONGITUDE", "LATITUDE"],
-        get_fill_color="color",
-        get_radius=8000,
-        pickable=True,
-    )
-
-    tooltip = {
-        "html": "<b>Country:</b> {country} <br/>"
-                "<b>Region:</b> {admin1} <br/>"
-                "<b>Event Type:</b> {event_type} <br/>"
-                "<b>Fatalities:</b> {fatalities}",
-        "style": {"backgroundColor": "white", "color": "black"},
-    }
-
-    deck = pdk.Deck(
-        map_style="light",
-        initial_view_state=pdk.ViewState(
-            latitude=20,
-            longitude=0,
-            zoom=1.6,
-            pitch=0,
-        ),
-        layers=[heatmap_layer, layer],
-        tooltip=tooltip,
-    )
-
-    st.pydeck_chart(deck)
-
-else:
-    st.info("No data available for the map.")
+st.pydeck_chart(deck)
