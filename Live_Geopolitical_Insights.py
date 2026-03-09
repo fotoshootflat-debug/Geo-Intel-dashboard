@@ -59,16 +59,28 @@ col2.metric("Average Goldstein Score", round(country_df["SCORE"].mean(),2) if "S
 # -----------------------------
 # MAP VIEW
 # -----------------------------
+# -----------------------------
+# MAP VIEW with color-coded events
+# -----------------------------
 if not country_df.empty:
     country_df = country_df.dropna(subset=["LATITUDE", "LONGITUDE"])
-    country_df["color"] = [ [255,0,0,160] for _ in range(len(country_df)) ]  # red dots
+
+    # Define colors for event types
+    event_colors = {
+        "14": [255, 0, 0, 180],    # Example: war = red
+        "13": [0, 0, 255, 180],    # protest = blue
+        "19": [0, 255, 0, 180],    # cybercrime = green
+    }
+    # Default color if event type not in dict
+    country_df["color"] = country_df["EVENT_TYPE"].map(event_colors)
+    country_df["color"] = country_df["color"].apply(lambda x: x if isinstance(x, list) else [128,128,128,140])
 
     layer = pdk.Layer(
         "ScatterplotLayer",
         data=country_df,
         get_position=["LONGITUDE","LATITUDE"],
         get_fill_color="color",
-        get_radius=20000,
+        get_radius=15000,  # smaller radius for clarity
         pickable=True
     )
 
