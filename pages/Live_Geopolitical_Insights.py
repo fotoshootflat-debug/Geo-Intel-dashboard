@@ -12,18 +12,27 @@ st.title("🌍 Live Geopolitical Intelligence Dashboard")
 # ------------------------------------------------
 # LOAD LIVE GDELT DATA
 # ------------------------------------------------
-
 @st.cache_data(ttl=600)
 def load_gdelt():
 
     try:
+
         update_url = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
         r = requests.get(update_url)
 
-        latest_file = r.text.split()[-1]
-        csv_url = f"http://data.gdeltproject.org/gdeltv2/{latest_file}"
+        lines = r.text.split("\n")
+        latest_line = lines[0]
+        zip_url = latest_line.split(" ")[2]
 
-        df = pd.read_csv(csv_url, sep="\t", header=None)
+        response = requests.get(zip_url)
+
+        df = pd.read_csv(
+            zip_url,
+            compression="zip",
+            sep="\t",
+            header=None,
+            low_memory=False
+        )
 
         df = df.rename(columns={
             53: "LATITUDE",
