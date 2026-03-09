@@ -12,16 +12,15 @@ st.title("🌍 Live Geopolitical Intelligence Dashboard")
 # ------------------------------------------------
 # LOAD LIVE GDELT DATA
 # ------------------------------------------------
-  @st.cache_data(ttl=600)
+
+@st.cache_data(ttl=600)
 def load_gdelt():
 
-    url = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
-
     try:
-        # Get latest update file
-        r = requests.get(url)
-        latest_file = r.text.split()[-1]
+        update_url = "http://data.gdeltproject.org/gdeltv2/lastupdate.txt"
+        r = requests.get(update_url)
 
+        latest_file = r.text.split()[-1]
         csv_url = f"http://data.gdeltproject.org/gdeltv2/{latest_file}"
 
         df = pd.read_csv(csv_url, sep="\t", header=None)
@@ -37,12 +36,20 @@ def load_gdelt():
             51: "COUNTRY"
         })
 
-        return df
+        df = df.dropna(subset=["LATITUDE","LONGITUDE"])
+
+        return df.head(5000)
 
     except Exception as e:
 
         st.error(f"GDELT feed error: {e}")
         return pd.DataFrame()
+
+gdelt_df = load_gdelt()
+
+if gdelt_df.empty:
+    st.error("Live event feed could not be loaded.")
+    st.stop()
 
 # ------------------------------------------------
 # GLOBAL HOTSPOT MAP
@@ -50,34 +57,24 @@ def load_gdelt():
 
 st.subheader("🌐 Global Event Hotspots")
 
-global_df = gdelt_df.dropna(subset=["LATITUDE","LONGITUDE"])
-
-global_df["color"] = [255,0,0]
-
 layer = pdk.Layer(
     "ScatterplotLayer",
-    data=global_df,
+    data=gdelt_df,
     get_position=["LONGITUDE","LATITUDE"],
-    get_fill_color="[255,0,0,160]",
+    get_fill_color=[255,0,0,160],
     get_radius=20000,
     pickable=True
 )
 
-view_state = pdk.ViewState(
-    latitude=20,
-    longitude=0,
-    zoom=1.5
-)
+view_state = pdk.ViewState(latitude=20, longitude=0, zoom=1.5)
 
 deck = pdk.Deck(
-    map_style="mapbox://styles/mapbox/light-v9",
+    map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     initial_view_state=view_state,
     layers=[layer],
     tooltip={
-        "html": "<b>Actor1:</b> {ACTOR1} <br/>"
-                "<b>Actor2:</b> {ACTOR2} <br/>"
-                "<b>Event:</b> {EVENT_TYPE}",
-        "style": {"backgroundColor": "white", "color": "black"}
+        "html": "<b>{ACTOR1}</b> vs <b>{ACTOR2}</b><br/>Event: {EVENT_TYPE}",
+        "style": {"backgroundColor": "white","color": "black"}
     }
 )
 
@@ -89,14 +86,11 @@ st.pydeck_chart(deck)
 
 st.subheader("Country Intelligence")
 
-countries = sorted(global_df["COUNTRY"].dropna().unique())
+countries = sorted(gdelt_df["COUNTRY"].dropna().unique())
 
-country_selected = st.selectbox(
-    "Select Country",
-    countries
-)
+country_selected = st.selectbox("Select Country", countries)
 
-country_df = global_df[global_df["COUNTRY"] == country_selected]
+country_df = gdelt_df[gdelt_df["COUNTRY"] == country_selected]
 
 # ------------------------------------------------
 # METRICS
@@ -109,7 +103,7 @@ col1,col2 = st.columns(2)
 col1.metric("Total Events", len(country_df))
 
 if "SCORE" in country_df.columns:
-    col2.metric("Average Goldstein Score", round(country_df["SCORE"].mean(),2))
+    col2.metric("Average Score", round(country_df["SCORE"].mean(),2))
 else:
     col2.metric("Average Score","N/A")
 
@@ -123,7 +117,7 @@ country_layer = pdk.Layer(
     "ScatterplotLayer",
     data=country_df,
     get_position=["LONGITUDE","LATITUDE"],
-    get_fill_color="[255,0,0,160]",
+    get_fill_color=[255,0,0,160],
     get_radius=15000,
     pickable=True
 )
@@ -135,29 +129,21 @@ country_view = pdk.ViewState(
 )
 
 country_deck = pdk.Deck(
-    map_style="mapbox://styles/mapbox/light-v9",
+    map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
     initial_view_state=country_view,
-    layers=[country_layer],
-    tooltip={
-        "html": "<b>Actor1:</b> {ACTOR1} <br/>"
-                "<b>Actor2:</b> {ACTOR2} <br/>"
-                "<b>Event:</b> {EVENT_TYPE} <br/>"
-                "<b>Score:</b> {SCORE}"
-    }
+    layers=[country_layer]
 )
 
 st.pydeck_chart(country_deck)
 
 # ------------------------------------------------
-# RECENT EVENTS
+# RECENT EVENTS TABLE
 # ------------------------------------------------
 
 st.subheader("Recent Events")
 
 st.dataframe(
-    country_df[
-        ["ACTOR1","ACTOR2","EVENT_TYPE","SUB_EVENT_TYPE","SCORE"]
-    ].head(20)
+    country_df[["ACTOR1","ACTOR2","EVENT_TYPE","SUB_EVENT_TYPE","SCORE"]].head(20)
 )
 
 # ------------------------------------------------
@@ -169,7 +155,6 @@ st.subheader("Download Intelligence Report")
 if st.button("Generate PDF Report"):
 
     pdf = FPDF()
-
     pdf.add_page()
 
     pdf.set_font("Arial","B",16)
@@ -187,7 +172,6 @@ if st.button("Generate PDF Report"):
     pdf.cell(0,10,"Recent Events:",ln=True)
 
     for i,row in country_df.head(10).iterrows():
-
         pdf.multi_cell(
             0,
             8,
