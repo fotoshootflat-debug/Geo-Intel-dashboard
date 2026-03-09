@@ -3,6 +3,11 @@ import pandas as pd
 import pydeck as pdk
 import glob
 
+# -----------------------------
+# AUTO REFRESH (LIVE FEED SIMULATION)
+# -----------------------------
+st.autorefresh(interval=60000, key="data_refresh")
+
 st.title("🌍 Global Conflict Intelligence Map")
 
 # -----------------------------
