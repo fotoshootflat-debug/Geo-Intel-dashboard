@@ -38,7 +38,53 @@ gdelt_df = load_gdelt()
 if gdelt_df.empty:
     st.warning("No live events available right now.")
     st.stop()
+# -----------------------------
+# GLOBAL HOTSPOT OVERVIEW
+# -----------------------------
+st.subheader("🌐 Global Event Hotspots (Last 1000 events)")
 
+hotspot_df = gdelt_df.dropna(subset=["LATITUDE", "LONGITUDE"])
+
+# Assign colors by event type (example)
+event_colors = {
+    "14": [255, 0, 0, 180],    # war
+    "13": [0, 0, 255, 180],    # protest
+    "19": [0, 255, 0, 180],    # cybercrime
+}
+
+hotspot_df["color"] = hotspot_df["EVENT_TYPE"].map(event_colors)
+hotspot_df["color"] = hotspot_df["color"].apply(lambda x: x if isinstance(x, list) else [128,128,128,140])
+
+hotspot_layer = pdk.Layer(
+    "ScatterplotLayer",
+    data=hotspot_df,
+    get_position=["LONGITUDE","LATITUDE"],
+    get_fill_color="color",
+    get_radius=20000,
+    pickable=True
+)
+
+hotspot_deck = pdk.Deck(
+    map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+    initial_view_state=pdk.ViewState(
+        latitude=0,
+        longitude=0,
+        zoom=1.5,
+        pitch=0
+    ),
+    layers=[hotspot_layer],
+    tooltip={
+        "html": "<b>Country:</b> {ActionGeo_CountryCode} <br/>"
+                "<b>Event Type:</b> {EVENT_TYPE} <br/>"
+                "<b>Sub-event:</b> {SUB_EVENT_TYPE} <br/>"
+                "<b>Actor1:</b> {ACTOR1} <br/>"
+                "<b>Actor2:</b> {ACTOR2} <br/>"
+                "<b>Score:</b> {SCORE}",
+        "style": {"backgroundColor": "white","color":"black"}
+    }
+)
+
+st.pydeck_chart(hotspot_deck)
 # -----------------------------
 # FILTER BY COUNTRY
 # -----------------------------
