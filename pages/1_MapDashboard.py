@@ -189,15 +189,17 @@ if not filtered_df.empty:
     }
 
     deck = pdk.Deck(
-        map_style="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
-        initial_view_state=pdk.ViewState(
-            latitude=filtered_df["LATITUDE"].mean(),
-            longitude=filtered_df["LONGITUDE"].mean(),
-            zoom=2.4,
-            pitch=0,
-        ),
-        layers=[heatmap_layer, layer],
-        tooltip=tooltip,
+       deck = pdk.Deck(
+    map_style="light",
+    initial_view_state=pdk.ViewState(
+        latitude=20,
+        longitude=0,
+        zoom=1.6,
+        pitch=0,
+    ),
+    layers=[heatmap_layer, layer],
+    tooltip=tooltip,
+)
     )
 
     st.pydeck_chart(deck)
