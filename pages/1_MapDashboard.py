@@ -3,10 +3,11 @@ import pandas as pd
 import pydeck as pdk
 import glob
 
-# -----------------------------
-# AUTO REFRESH (LIVE FEED SIMULATION)
-# -----------------------------
-st.autorefresh(interval=60000, key="data_refresh")
+# Auto-refresh every 60 seconds
+from streamlit_autorefresh import st_autorefresh
+
+# This triggers page reload every 60 seconds
+st_autorefresh(interval=60000, key="data_refresh")
 
 st.title("🌍 Global Conflict Intelligence Map")
 
