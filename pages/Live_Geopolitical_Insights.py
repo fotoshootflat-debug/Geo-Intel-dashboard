@@ -59,7 +59,13 @@ gdelt_df = load_gdelt()
 if gdelt_df.empty:
     st.error("Live event feed could not be loaded.")
     st.stop()
+# Clean dataframe for PyDeck
+gdelt_df = gdelt_df.dropna(subset=["LATITUDE", "LONGITUDE"])
+gdelt_df["LATITUDE"] = gdelt_df["LATITUDE"].astype(float)
+gdelt_df["LONGITUDE"] = gdelt_df["LONGITUDE"].astype(float)
 
+# Convert to pure python types
+gdelt_df = gdelt_df.reset_index(drop=True)
 # ------------------------------------------------
 # GLOBAL HOTSPOT MAP
 # ------------------------------------------------
@@ -99,7 +105,10 @@ countries = sorted(gdelt_df["COUNTRY"].dropna().unique())
 
 country_selected = st.selectbox("Select Country", countries)
 
-country_df = gdelt_df[gdelt_df["COUNTRY"] == country_selected]
+country_df = gdelt_df[gdelt_df["COUNTRY"] == country_selected].copy()
+
+country_df["LATITUDE"] = country_df["LATITUDE"].astype(float)
+country_df["LONGITUDE"] = country_df["LONGITUDE"].astype(float)
 
 # ------------------------------------------------
 # METRICS
